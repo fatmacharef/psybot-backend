@@ -6,3 +6,4 @@ pydantic
 vaderSentiment
 duckduckgo-search
 huggingface_hub
+requests
