@@ -40,7 +40,7 @@ def generate_response(user_input):
     
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     payload = {"inputs": prompt, "parameters": {
-        "max_new_tokens": 100,
+        "max_new_tokens": 50,  # ✅ Réduction pour éviter les crashs
         "do_sample": True,
         "temperature": 0.7,
         "top_k": 50,
@@ -50,10 +50,10 @@ def generate_response(user_input):
 
     try:
         response = requests.post(HF_MODEL_URL, headers=headers, json=payload)
+        print("🔵 Réponse brute de Hugging Face :", response.text)  # ✅ Log pour debug
         response.raise_for_status()
         response_json = response.json()
 
-        # 📌 Extraire la réponse correctement
         if isinstance(response_json, list) and len(response_json) > 0 and "generated_text" in response_json[0]:
             generated_text = response_json[0]['generated_text']
             return generated_text.split("<|bot|>")[-1].strip()
@@ -61,6 +61,7 @@ def generate_response(user_input):
             return "Désolé, je ne peux pas répondre pour le moment."
 
     except requests.exceptions.RequestException as e:
+        print("🔴 Erreur API Hugging Face :", str(e))  # ✅ Log pour debug
         return f"Erreur lors de la communication avec le modèle : {str(e)}"
 
 # 📌 Fonction de recherche avec DuckDuckGo
@@ -98,9 +99,12 @@ def classify_and_respond(text):
 @app.post("/chat/")
 async def chat_with_bot(user_input: UserInput):
     try:
+        print(f"📩 Requête reçue : {user_input.user_input}")  # ✅ Log pour debug
         response = classify_and_respond(user_input.user_input)
+        print(f"📤 Réponse envoyée : {response}")  # ✅ Log pour debug
         return {"response": response}
     except Exception as e:
+        print(f"🚨 Erreur interne : {str(e)}")  # ✅ Log pour debug
         raise HTTPException(status_code=500, detail=str(e))
 
 # 📌 Endpoint de test pour voir si l'API tourne bien
