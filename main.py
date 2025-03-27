@@ -8,8 +8,8 @@ import nltk
 from duckduckgo_search import DDGS
 
 # 📌 Télécharger les ressources nécessaires pour NLTK dans un chemin défini
-nltk.download("punkt", download_dir="/usr/local/nltk_data")
-nltk.data.path.append("/usr/local/nltk_data")
+nltk.data.path.append(os.path.join(os.getcwd(), "nltk_data"))  # 🟢 Télécharger les données dans un dossier local
+nltk.download("punkt", download_dir=os.path.join(os.getcwd(), "nltk_data"))
 
 # 📌 Charger le token Hugging Face depuis la variable d’environnement
 HF_TOKEN = os.getenv("HF_TOKEN")
