@@ -7,8 +7,9 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import nltk
 from duckduckgo_search import DDGS
 
-# 📌 Télécharger les ressources nécessaires pour NLTK
-nltk.download("punkt")
+# 📌 Télécharger les ressources nécessaires pour NLTK dans un chemin défini
+nltk.download("punkt", download_dir="/usr/local/nltk_data")
+nltk.data.path.append("/usr/local/nltk_data")
 
 # 📌 Charger le token Hugging Face depuis la variable d’environnement
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -77,23 +78,28 @@ def search_duckduckgo(query, max_results=3):
 
 # 📌 Fonction de classification et réponse
 def classify_and_respond(text):
-    tokens = set(word_tokenize(text.lower()))
+    try:
+        tokens = set(word_tokenize(text.lower()))
 
-    # 🔹 Vérifier si c'est une recherche
-    if tokens.intersection(search_keywords) or text.endswith('?'):
-        return search_duckduckgo(text)
-    
-    # 🔹 Analyse du sentiment avec VADER
-    vader_score = analyzer.polarity_scores(text)["compound"]
+        # 🔹 Vérifier si c'est une recherche
+        if tokens.intersection(search_keywords) or text.endswith('?'):
+            return search_duckduckgo(text)
 
-    # 🔹 Bloquer les messages violents
-    violent_keywords = {"punch", "hit", "hurt", "kill", "destroy", "break", "explode", "attack"}
-    if any(word in text.lower() for word in violent_keywords):
-        return ["🔴 Non Accepté: Essayez de vous calmer. La violence ne résout rien."]
+        # 🔹 Analyse du sentiment avec VADER
+        vader_score = analyzer.polarity_scores(text)["compound"]
 
-    # 🔹 Si la requête est acceptable, utiliser GPT
-    response = generate_response(text)
-    return [f"🟢 Accepté: {response}"]
+        # 🔹 Bloquer les messages violents
+        violent_keywords = {"punch", "hit", "hurt", "kill", "destroy", "break", "explode", "attack"}
+        if any(word in text.lower() for word in violent_keywords):
+            return ["🔴 Non Accepté: Essayez de vous calmer. La violence ne résout rien."]
+
+        # 🔹 Si la requête est acceptable, utiliser GPT
+        response = generate_response(text)
+        return [f"🟢 Accepté: {response}"]
+
+    except Exception as e:
+        print(f"🚨 Erreur lors de la classification : {str(e)}")  # ✅ Log pour debug
+        return ["⚠️ Une erreur est survenue dans la classification du message."]
 
 # 📌 Endpoint principal de l'API
 @app.post("/chat/")
