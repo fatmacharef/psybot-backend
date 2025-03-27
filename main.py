@@ -7,9 +7,16 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import nltk
 from duckduckgo_search import DDGS
 
-# 📌 Télécharger les ressources nécessaires pour NLTK dans un chemin défini
-nltk.data.path.append(os.path.join(os.getcwd(), "nltk_data"))  # 🟢 Télécharger les données dans un dossier local
-nltk.download("punkt", download_dir=os.path.join(os.getcwd(), "nltk_data"))
+# 📌 Définir un chemin local pour télécharger les ressources NLTK
+NLTK_DIR = os.path.join(os.getcwd(), "nltk_data")
+nltk.data.path.append(NLTK_DIR)
+
+# 📌 Vérifier et télécharger les ressources nécessaires
+for resource in ["punkt", "wordnet"]:
+    try:
+        nltk.data.find(f'tokenizers/{resource}')
+    except LookupError:
+        nltk.download(resource, download_dir=NLTK_DIR)
 
 # 📌 Charger le token Hugging Face depuis la variable d’environnement
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -51,7 +58,6 @@ def generate_response(user_input):
 
     try:
         response = requests.post(HF_MODEL_URL, headers=headers, json=payload)
-        print("🔵 Réponse brute de Hugging Face :", response.text)  # ✅ Log pour debug
         response.raise_for_status()
         response_json = response.json()
 
@@ -62,12 +68,10 @@ def generate_response(user_input):
             return "Désolé, je ne peux pas répondre pour le moment."
 
     except requests.exceptions.RequestException as e:
-        print("🔴 Erreur API Hugging Face :", str(e))  # ✅ Log pour debug
         return f"Erreur lors de la communication avec le modèle : {str(e)}"
 
 # 📌 Fonction de recherche avec DuckDuckGo
 def search_duckduckgo(query, max_results=3):
-    """Recherche des informations sur DuckDuckGo et retourne une liste de résultats."""
     try:
         search_results = list(DDGS().text(query, max_results=max_results))
         if search_results:
@@ -98,19 +102,15 @@ def classify_and_respond(text):
         return [f"🟢 Accepté: {response}"]
 
     except Exception as e:
-        print(f"🚨 Erreur lors de la classification : {str(e)}")  # ✅ Log pour debug
         return ["⚠️ Une erreur est survenue dans la classification du message."]
 
 # 📌 Endpoint principal de l'API
 @app.post("/chat/")
 async def chat_with_bot(user_input: UserInput):
     try:
-        print(f"📩 Requête reçue : {user_input.user_input}")  # ✅ Log pour debug
         response = classify_and_respond(user_input.user_input)
-        print(f"📤 Réponse envoyée : {response}")  # ✅ Log pour debug
         return {"response": response}
     except Exception as e:
-        print(f"🚨 Erreur interne : {str(e)}")  # ✅ Log pour debug
         raise HTTPException(status_code=500, detail=str(e))
 
 # 📌 Endpoint de test pour voir si l'API tourne bien
