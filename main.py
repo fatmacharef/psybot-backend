@@ -48,7 +48,7 @@ def generate_response(user_input):
     
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     payload = {"inputs": prompt, "parameters": {
-        "max_new_tokens": 50,  # ✅ Réduction pour éviter les crashs
+        "max_new_tokens": 50,
         "do_sample": True,
         "temperature": 0.7,
         "top_k": 50,
@@ -66,7 +66,6 @@ def generate_response(user_input):
             return generated_text.split("<|bot|>")[-1].strip()
         else:
             return "Désolé, je ne peux pas répondre pour le moment."
-
     except requests.exceptions.RequestException as e:
         return f"Erreur lors de la communication avec le modèle : {str(e)}"
 
@@ -83,25 +82,37 @@ def search_duckduckgo(query, max_results=3):
 # 📌 Fonction de classification et réponse
 def classify_and_respond(text):
     try:
-        tokens = set(word_tokenize(text.lower()))
-
+        print(f"🔍 Message reçu : {text}")
+        
+        # 🔹 Vérifier et déboguer la tokenization
+        try:
+            tokens = set(word_tokenize(text.lower()))
+            print(f"✅ Tokens : {tokens}")
+        except Exception as e:
+            print(f"❌ Erreur tokenization : {e}")
+            return ["⚠️ Erreur tokenisation"]
+        
         # 🔹 Vérifier si c'est une recherche
+        print(f"🔎 Intersection avec mots-clés recherche : {tokens.intersection(search_keywords)}")
         if tokens.intersection(search_keywords) or text.endswith('?'):
             return search_duckduckgo(text)
-
+        
         # 🔹 Analyse du sentiment avec VADER
         vader_score = analyzer.polarity_scores(text)["compound"]
-
+        print(f"🧠 Score VADER : {vader_score}")
+        
         # 🔹 Bloquer les messages violents
         violent_keywords = {"punch", "hit", "hurt", "kill", "destroy", "break", "explode", "attack"}
         if any(word in text.lower() for word in violent_keywords):
             return ["🔴 Non Accepté: Essayez de vous calmer. La violence ne résout rien."]
-
+        
         # 🔹 Si la requête est acceptable, utiliser GPT
         response = generate_response(text)
+        print(f"🤖 Réponse GPT : {response}")
         return [f"🟢 Accepté: {response}"]
-
+    
     except Exception as e:
+        print(f"❌ Erreur classification : {e}")
         return ["⚠️ Une erreur est survenue dans la classification du message."]
 
 # 📌 Endpoint principal de l'API
