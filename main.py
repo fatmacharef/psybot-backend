@@ -35,14 +35,22 @@ def tokenize_text(text):
 def generate_response(user_input):
     HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
 
-    prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"  # Respecte le format du fine-tuning
-    payload = {"prompt": prompt}  # ✅ Correction : le bon format d'envoi
+    # 🛠️ Ajout de paramètres de génération pour de meilleures réponses
+    generation_params = {
+        "max_length": 150,        # Augmente la longueur des réponses
+        "temperature": 0.7,       # Rend les réponses plus variées
+        "top_p": 0.9,             # Échantillonnage nucleus
+        "repetition_penalty": 1.2 # Réduit les répétitions
+    }
+
+    # 📌 Envoi du prompt en paramètre GET (correspond au format attendu par ton API)
+    params = {"prompt": user_input, **generation_params}
 
     headers = {"Content-Type": "application/json"}
 
     try:
-        print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
-        response = requests.post(HF_SPACE_URL, json=payload, headers=headers, timeout=30)
+        print(f"🚀 Envoi de la requête à {HF_SPACE_URL} avec params: {params}")
+        response = requests.get(HF_SPACE_URL, params=params, headers=headers, timeout=30)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
@@ -60,7 +68,7 @@ def generate_response(user_input):
         if isinstance(response_json, dict) and "response" in response_json:
             response_text = response_json["response"]
 
-            # 🔍 Nettoyer la réponse pour ne garder que la partie après <|bot|>
+            # 🔍 Nettoyer la réponse pour enlever "<|bot|>" s'il apparaît
             if "<|bot|>" in response_text:
                 response_text = response_text.split("<|bot|>")[-1].strip()
 
