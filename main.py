@@ -7,13 +7,21 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import nltk
 from duckduckgo_search import DDGS
 
-# 📌 Télécharger les ressources NLTK nécessaires
-nltk.download('punkt')
-nltk.download('wordnet')
-
 # 📌 Définir un chemin local pour télécharger les ressources NLTK
 NLTK_DIR = os.path.join(os.getcwd(), "nltk_data")
+os.makedirs(NLTK_DIR, exist_ok=True)
 nltk.data.path.append(NLTK_DIR)
+
+# 📌 Télécharger les ressources NLTK nécessaires
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', download_dir=NLTK_DIR)
+
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet', download_dir=NLTK_DIR)
 
 # 📌 Charger le token Hugging Face depuis la variable d’environnement
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -42,27 +50,25 @@ class UserInput(BaseModel):
 # 📌 Fonction pour générer une réponse avec l'API Hugging Face
 def generate_response(user_input):
     prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
-    
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    payload = {"inputs": prompt, "parameters": {
-        "max_new_tokens": 50,
-        "do_sample": True,
-        "temperature": 0.7,
-        "top_k": 50,
-        "top_p": 0.9,
-        "repetition_penalty": 1.2
-    }}
-
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 50,
+            "do_sample": True,
+            "temperature": 0.7,
+            "top_k": 50,
+            "top_p": 0.9,
+            "repetition_penalty": 1.2
+        }
+    }
     try:
         response = requests.post(HF_MODEL_URL, headers=headers, json=payload)
         response.raise_for_status()
         response_json = response.json()
-
         if isinstance(response_json, list) and len(response_json) > 0 and "generated_text" in response_json[0]:
-            generated_text = response_json[0]['generated_text']
-            return generated_text.split("<|bot|>")[-1].strip()
-        else:
-            return "Désolé, je ne peux pas répondre pour le moment."
+            return response_json[0]['generated_text'].split("<|bot|>")[-1].strip()
+        return "Désolé, je ne peux pas répondre pour le moment."
     except requests.exceptions.RequestException as e:
         return f"Erreur lors de la communication avec le modèle : {str(e)}"
 
@@ -70,9 +76,7 @@ def generate_response(user_input):
 def search_duckduckgo(query, max_results=3):
     try:
         search_results = list(DDGS().text(query, max_results=max_results))
-        if search_results:
-            return [result["body"] for result in search_results if "body" in result]
-        return ["Je n'ai pas trouvé d'informations sur ce sujet."]
+        return [result["body"] for result in search_results if "body" in result] or ["Je n'ai pas trouvé d'informations sur ce sujet."]
     except Exception as e:
         return [f"Erreur de recherche : {str(e)}"]
 
@@ -81,16 +85,15 @@ def classify_and_respond(text):
     try:
         print(f"🔍 Message reçu : {text}")
         
-        # 🔹 Vérifier et déboguer la tokenization
+        # 🔹 Vérifier la tokenization
         try:
             tokens = set(word_tokenize(text.lower()))
             print(f"✅ Tokens : {tokens}")
         except Exception as e:
-            print(f"❌ Erreur tokenization : {e}")
+            print(f"❌ Erreur tokenisation : {e}")
             return ["⚠️ Erreur tokenisation"]
         
         # 🔹 Vérifier si c'est une recherche
-        print(f"🔎 Intersection avec mots-clés recherche : {tokens.intersection(search_keywords)}")
         if tokens.intersection(search_keywords) or text.endswith('?'):
             return search_duckduckgo(text)
         
