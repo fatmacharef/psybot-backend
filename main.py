@@ -36,7 +36,7 @@ def generate_response(user_input):
     HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
 
     prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"  # Respecte le format du fine-tuning
-    payload = {"inputs": prompt}  # ✅ Correction : "inputs" au lieu de "prompt"
+    payload = {"prompt": prompt}  # ✅ Correction : "inputs" au lieu de "prompt"
 
     headers = {"Content-Type": "application/json"}
 
