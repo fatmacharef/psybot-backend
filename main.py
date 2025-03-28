@@ -50,7 +50,7 @@ def generate_response(user_input):
 
     try:
         print(f"🚀 Envoi de la requête à {HF_SPACE_URL} avec params: {params}")
-        response = requests.get(HF_SPACE_URL, params=params, headers=headers, timeout=30)
+        response = requests.post(HF_SPACE_URL, params=params, headers=headers, timeout=30)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
