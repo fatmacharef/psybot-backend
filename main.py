@@ -49,7 +49,7 @@ def generate_response(user_input):
     prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
-        "Content-Type": "application/json"  # ✅ Correction ajoutée ici
+        "Content-Type": "application/json"
     }
     payload = {
         "inputs": prompt,
@@ -66,6 +66,7 @@ def generate_response(user_input):
         print("🚀 Envoi de la requête à Hugging Face...")
         response = requests.post(HF_MODEL_URL, headers=headers, json=payload)
         print(f"📡 Statut HTTP: {response.status_code}")
+        print(f"📡 Réponse brute de HF: {response.text}")
 
         if response.status_code == 401:
             return "🚨 Erreur 401 : Token Hugging Face invalide ou non autorisé."
@@ -78,9 +79,13 @@ def generate_response(user_input):
         if isinstance(response_json, dict) and "error" in response_json:
             return f"⚠️ Erreur API : {response_json['error']}"
 
-        if isinstance(response_json, list) and len(response_json) > 0:
-            generated_text = response_json[0].get('generated_text', '')
-            return generated_text.split("<|bot|>")[-1].strip() if "<|bot|>" in generated_text else generated_text
+        if isinstance(response_json, list) and len(response_json) > 0 and "generated_text" in response_json[0]:
+            generated_text = response_json[0]["generated_text"]
+            print(f"🤖 Réponse générée : {generated_text}")
+
+            # Vérification pour éviter le copier-coller
+            clean_response = generated_text.replace(prompt, "").strip()
+            return clean_response if clean_response else "Désolé, je ne peux pas répondre pour le moment."
 
         return "Désolé, je ne peux pas répondre pour le moment."
     except requests.exceptions.RequestException as e:
@@ -101,15 +106,19 @@ def classify_and_respond(text):
         tokens = tokenize_text(text)
         print(f"✅ Tokens : {tokens}")
 
+        # 🔍 Vérifier si la question est une recherche
         if tokens.intersection(search_keywords) or text.endswith('?'):
             return search_duckduckgo(text)
 
+        # 🔍 Vérification du sentiment avec VADER
         vader_score = analyzer.polarity_scores(text)["compound"]
         print(f"🧠 Score VADER : {vader_score}")
 
+        # 🔴 Vérification des mots violents
         if any(word in text.lower().split() for word in violent_keywords):
             return ["🔴 Non Accepté: Essayez de vous calmer. La violence ne résout rien."]
 
+        # 🚀 Génération de réponse via Hugging Face
         response = generate_response(text)
         print(f"🤖 Réponse GPT : {response}")
         return [f"🟢 Accepté: {response}"]
@@ -118,6 +127,7 @@ def classify_and_respond(text):
         print(f"❌ Erreur classification : {e}")
         return ["⚠️ Une erreur est survenue dans la classification du message."]
 
+# 📌 Endpoint API
 @app.post("/chat/")
 async def chat_with_bot(user_input: UserInput):
     return {"response": classify_and_respond(user_input.user_input)}
