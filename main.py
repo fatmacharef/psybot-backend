@@ -42,7 +42,7 @@ def generate_response(user_input):
 
     try:
         print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
-        response = requests.post(HF_SPACE_URL, data=payload, headers=headers, timeout=10)
+        response = requests.post(HF_SPACE_URL, json={"prompt": user_input}, headers=headers, timeout=10)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
