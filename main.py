@@ -36,13 +36,13 @@ def generate_response(user_input):
     HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
 
     prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"  # Respecte le format du fine-tuning
-    payload = {"prompt": prompt}  # ✅ Correction : "inputs" au lieu de "prompt"
+    payload = {"prompt": prompt}  # ✅ Correction : le bon format d'envoi
 
     headers = {"Content-Type": "application/json"}
 
     try:
         print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
-        response = requests.post(f"{HF_SPACE_URL}?prompt={user_input}", headers=headers, timeout=30)
+        response = requests.post(HF_SPACE_URL, json=payload, headers=headers, timeout=30)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
@@ -58,7 +58,13 @@ def generate_response(user_input):
 
         # 🔍 Vérification et extraction correcte de la réponse
         if isinstance(response_json, dict) and "response" in response_json:
-            return response_json["response"]
+            response_text = response_json["response"]
+
+            # 🔍 Nettoyer la réponse pour ne garder que la partie après <|bot|>
+            if "<|bot|>" in response_text:
+                response_text = response_text.split("<|bot|>")[-1].strip()
+
+            return response_text
 
         return "Désolé, je ne peux pas répondre pour le moment."
 
