@@ -33,13 +33,16 @@ def tokenize_text(text):
 
 # 📌 Fonction pour générer une réponse avec l'API Hugging Face Spaces
 def generate_response(user_input):
-    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # 🔄 Vérifie bien cette URL
+    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
 
-    payload = {"prompt": user_input}  # ✅ Correction : Hugging Face API attend "prompt"
+    prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"  # Respecte le format du fine-tuning
+    payload = {"inputs": prompt}  # Correction ici : "inputs" au lieu de "prompt"
+
+    headers = {"Content-Type": "application/json"}
 
     try:
         print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
-        response = requests.post(HF_SPACE_URL, json=payload)
+        response = requests.post(HF_SPACE_URL, json=payload, headers=headers, timeout=10)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
@@ -56,10 +59,16 @@ def generate_response(user_input):
 
         # 🔍 Vérification et extraction correcte de la réponse
         if isinstance(response_json, dict) and "response" in response_json:
-            return response_json["response"] if isinstance(response_json["response"], str) else " ".join(response_json["response"])
-        
+            generated_text = response_json["response"]
+            if isinstance(generated_text, str):
+                return generated_text
+            elif isinstance(generated_text, list):
+                return " ".join(generated_text)
+
         return "Désolé, je ne peux pas répondre pour le moment."
 
+    except requests.exceptions.Timeout:
+        return "🛑 Erreur : Temps de réponse trop long. Réessaie plus tard."
     except requests.exceptions.RequestException as e:
         return f"🛑 Erreur de connexion à Hugging Face : {str(e)}"
 
