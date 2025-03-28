@@ -33,40 +33,24 @@ def tokenize_text(text):
 
 # 📌 Fonction pour générer une réponse avec l'API Hugging Face Spaces
 def generate_response(user_input):
-    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"
+    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
 
-    # 🛠️ Construction du prompt avec le bon format
-    formatted_prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
-
-    # 🛠️ Ajout de paramètres de génération pour de meilleures réponses
-    generation_params = {
-        "prompt": formatted_prompt,  # 🔥 Assurer le bon format
-        "max_length": 150,
-        "temperature": 0.7,
-        "top_p": 0.9,
-        "repetition_penalty": 1.2
-    }
-
+    prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
+    payload = {"inputs": prompt, "parameters": {"max_length": 150, "temperature": 0.8, "top_p": 0.9, "repetition_penalty": 1.5}}
     headers = {"Content-Type": "application/json"}
 
     try:
-        print(f"🚀 Envoi de la requête à {HF_SPACE_URL} avec JSON: {generation_params}")
-        response = requests.post(HF_SPACE_URL, json=generation_params, headers=headers, timeout=30)
+        print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
+        response = requests.post(HF_SPACE_URL, json=payload, headers=headers, timeout=30)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
 
         if response.status_code != 200:
-            return f"🚨 Erreur {response.status_code} : {response.text}"
+            return f"🚨 Erreur {response.status_code} : Impossible d'obtenir une réponse."
 
         response_json = response.json()
-        response_text = response_json.get("response", "Désolé, je ne peux pas répondre pour le moment.")
-
-        # 🔍 Nettoyer la réponse pour enlever "<|bot|>" s'il apparaît
-        if "<|bot|>" in response_text:
-            response_text = response_text.split("<|bot|>")[-1].strip()
-
-        return response_text
+        return response_json.get("response", "Désolé, je ne peux pas répondre pour le moment.")
 
     except requests.exceptions.Timeout:
         return "🛑 Erreur : Temps de réponse trop long. Réessaie plus tard."
