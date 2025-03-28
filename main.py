@@ -35,22 +35,23 @@ def tokenize_text(text):
 def generate_response(user_input):
     HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
 
+    # 🛠️ Construction du prompt avec le bon format
+    formatted_prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
+
     # 🛠️ Ajout de paramètres de génération pour de meilleures réponses
     generation_params = {
-        "max_length": 150,        # Augmente la longueur des réponses
-        "temperature": 0.7,       # Rend les réponses plus variées
-        "top_p": 0.9,             # Échantillonnage nucleus
-        "repetition_penalty": 1.2 # Réduit les répétitions
+        "prompt": formatted_prompt,  # 🔥 Assurer le bon format
+        "max_length": 150,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.2
     }
-
-    # 📌 Envoi du prompt en paramètre GET (correspond au format attendu par ton API)
-    params = {"prompt": user_input, **generation_params}
 
     headers = {"Content-Type": "application/json"}
 
     try:
-        print(f"🚀 Envoi de la requête à {HF_SPACE_URL} avec params: {params}")
-        response = requests.post(HF_SPACE_URL, params=params, headers=headers, timeout=30)
+        print(f"🚀 Envoi de la requête à {HF_SPACE_URL} avec params: {generation_params}")
+        response = requests.post(HF_SPACE_URL, json=generation_params, headers=headers, timeout=30)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
