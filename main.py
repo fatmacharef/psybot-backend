@@ -8,20 +8,18 @@ import nltk
 from duckduckgo_search import DDGS
 
 # 📌 Définir un chemin local pour télécharger les ressources NLTK
-NLTK_DIR = os.path.join(os.getcwd(), "nltk_data")
+NLTK_DIR = "/opt/render/nltk_data"
 os.makedirs(NLTK_DIR, exist_ok=True)
 nltk.data.path.append(NLTK_DIR)
 
-# 📌 Télécharger les ressources NLTK nécessaires
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt', download_dir=NLTK_DIR)
-
-try:
-    nltk.data.find('corpora/wordnet')
-except LookupError:
-    nltk.download('wordnet', download_dir=NLTK_DIR)
+# 📌 Vérifier et télécharger les ressources NLTK manquantes
+nltk_resources = ['punkt', 'wordnet', 'vader_lexicon']
+for resource in nltk_resources:
+    try:
+        nltk.data.find(f"tokenizers/{resource}" if resource == "punkt" else f"corpora/{resource}")
+    except LookupError:
+        print(f"📥 Téléchargement de {resource}...")
+        nltk.download(resource, download_dir=NLTK_DIR)
 
 # 📌 Charger le token Hugging Face depuis la variable d’environnement
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -34,7 +32,7 @@ HF_MODEL_URL = "https://api-inference.huggingface.co/models/fatmata/psybot"
 # 📌 Initialisation de FastAPI
 app = FastAPI()
 
-# 📌 Analyse des émotions avec VADER
+# 📌 Initialisation de l'analyseur VADER
 analyzer = SentimentIntensityAnalyzer()
 
 # 📌 Mots-clés pour la détection des recherches
@@ -66,9 +64,13 @@ def generate_response(user_input):
         response = requests.post(HF_MODEL_URL, headers=headers, json=payload)
         response.raise_for_status()
         response_json = response.json()
-        if isinstance(response_json, list) and len(response_json) > 0 and "generated_text" in response_json[0]:
-            return response_json[0]['generated_text'].split("<|bot|>")[-1].strip()
+
+        # ✅ Correction de l'extraction du texte généré
+        if isinstance(response_json, list) and len(response_json) > 0:
+            generated_text = response_json[0].get('generated_text', '')
+            return generated_text.split("<|bot|>")[-1].strip() if "<|bot|>" in generated_text else generated_text
         return "Désolé, je ne peux pas répondre pour le moment."
+    
     except requests.exceptions.RequestException as e:
         return f"Erreur lors de la communication avec le modèle : {str(e)}"
 
@@ -84,7 +86,7 @@ def search_duckduckgo(query, max_results=3):
 def classify_and_respond(text):
     try:
         print(f"🔍 Message reçu : {text}")
-        
+
         # 🔹 Vérifier la tokenization
         try:
             tokens = set(word_tokenize(text.lower()))
