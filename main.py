@@ -46,7 +46,11 @@ def generate_response(user_input):
 
         # 🔴 Gérer les erreurs de l'API
         if response.status_code != 200:
-            return f"🚨 Erreur {response.status_code} : {response.json().get('detail', 'Impossible d\'obtenir une réponse.')}"
+            try:
+                error_detail = response.json().get("detail", "Impossible d'obtenir une réponse.")
+            except Exception:
+                error_detail = "Impossible d'obtenir une réponse."
+            return f"🚨 Erreur {response.status_code} : {error_detail}"
 
         response_json = response.json()
 
