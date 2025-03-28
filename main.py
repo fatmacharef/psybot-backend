@@ -11,8 +11,12 @@ tokenizer = AutoTokenizer.from_pretrained("fatmata/psybot")
 
 # 📌 Charger le token Hugging Face
 HF_TOKEN = os.getenv("HF_TOKEN")
+
+# 🔍 Vérifier que le token est bien chargé
 if not HF_TOKEN:
     raise ValueError("🚨 Erreur : La variable d'environnement 'HF_TOKEN' est manquante.")
+else:
+    print(f"✅ Token HF chargé avec succès : {HF_TOKEN[:6]}... (masqué)")
 
 # 📌 URL de l'API Hugging Face pour ton modèle
 HF_MODEL_URL = "https://api-inference.huggingface.co/models/fatmata/psybot"
@@ -43,7 +47,10 @@ def tokenize_text(text):
 # 📌 Fonction pour générer une réponse avec l'API Hugging Face
 def generate_response(user_input):
     prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"  # ✅ Correction ajoutée ici
+    }
     payload = {
         "inputs": prompt,
         "parameters": {
@@ -56,7 +63,15 @@ def generate_response(user_input):
         }
     }
     try:
+        print("🚀 Envoi de la requête à Hugging Face...")
         response = requests.post(HF_MODEL_URL, headers=headers, json=payload)
+        print(f"📡 Statut HTTP: {response.status_code}")
+
+        if response.status_code == 401:
+            return "🚨 Erreur 401 : Token Hugging Face invalide ou non autorisé."
+        elif response.status_code == 400:
+            return "🚨 Erreur 400 : Mauvaise requête. Vérifie le format des données envoyées."
+
         response.raise_for_status()
         response_json = response.json()
 
@@ -69,7 +84,7 @@ def generate_response(user_input):
 
         return "Désolé, je ne peux pas répondre pour le moment."
     except requests.exceptions.RequestException as e:
-        return f"Erreur lors de la communication avec le modèle : {str(e)}"
+        return f"🛑 Erreur de connexion à Hugging Face : {str(e)}"
 
 # 📌 Fonction de recherche avec DuckDuckGo
 def search_duckduckgo(query, max_results=3):
