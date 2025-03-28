@@ -33,7 +33,7 @@ def tokenize_text(text):
 
 # 📌 Fonction pour générer une réponse avec l'API Hugging Face Spaces
 def generate_response(user_input):
-    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
+    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"
 
     # 🛠️ Construction du prompt avec le bon format
     formatted_prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
@@ -50,32 +50,23 @@ def generate_response(user_input):
     headers = {"Content-Type": "application/json"}
 
     try:
-        print(f"🚀 Envoi de la requête à {HF_SPACE_URL} avec params: {generation_params}")
+        print(f"🚀 Envoi de la requête à {HF_SPACE_URL} avec JSON: {generation_params}")
         response = requests.post(HF_SPACE_URL, json=generation_params, headers=headers, timeout=30)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
 
         if response.status_code != 200:
-            try:
-                error_detail = response.json().get("detail", "Impossible d'obtenir une réponse.")
-            except Exception:
-                error_detail = "Impossible d'obtenir une réponse."
-            return f"🚨 Erreur {response.status_code} : {error_detail}"
+            return f"🚨 Erreur {response.status_code} : {response.text}"
 
         response_json = response.json()
+        response_text = response_json.get("response", "Désolé, je ne peux pas répondre pour le moment.")
 
-        # 🔍 Vérification et extraction correcte de la réponse
-        if isinstance(response_json, dict) and "response" in response_json:
-            response_text = response_json["response"]
+        # 🔍 Nettoyer la réponse pour enlever "<|bot|>" s'il apparaît
+        if "<|bot|>" in response_text:
+            response_text = response_text.split("<|bot|>")[-1].strip()
 
-            # 🔍 Nettoyer la réponse pour enlever "<|bot|>" s'il apparaît
-            if "<|bot|>" in response_text:
-                response_text = response_text.split("<|bot|>")[-1].strip()
-
-            return response_text
-
-        return "Désolé, je ne peux pas répondre pour le moment."
+        return response_text
 
     except requests.exceptions.Timeout:
         return "🛑 Erreur : Temps de réponse trop long. Réessaie plus tard."
