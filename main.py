@@ -1,6 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 import requests
-import os
 from pydantic import BaseModel
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from transformers import AutoTokenizer
@@ -32,28 +31,29 @@ class UserInput(BaseModel):
 def tokenize_text(text):
     return set(tokenizer.tokenize(text.lower()))
 
-# 📌 Fonction pour générer une réponse avec l'API **Hugging Face Spaces**
+# 📌 Fonction pour générer une réponse avec l'API Hugging Face Spaces
 def generate_response(user_input):
-    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # 🔄 Mise à jour ici
+    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # 🔄 Vérifie bien cette URL
 
-    payload = {"prompt": user_input}
+    payload = {"inputs": user_input}  # 🔄 Vérification : certaines APIs Space attendent "inputs"
 
     try:
-        print("🚀 Envoi de la requête à l'API Hugging Face Space...")
+        print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
         response = requests.post(HF_SPACE_URL, json=payload)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
 
-        # 🔴 Gérer les erreurs
+        # 🔴 Gérer les erreurs de l'API
         if response.status_code != 200:
-            return f"🚨 Erreur {response.status_code} : Impossible d'obtenir une réponse."
+            return f"🚨 Erreur {response.status_code} : {response.json().get('detail', 'Impossible d\'obtenir une réponse.')}"
 
         response_json = response.json()
-        
-        if "response" in response_json:
-            return response_json["response"]
 
+        # 🔍 Vérification et extraction correcte de la réponse
+        if isinstance(response_json, dict) and "response" in response_json:
+            return response_json["response"] if isinstance(response_json["response"], str) else " ".join(response_json["response"])
+        
         return "Désolé, je ne peux pas répondre pour le moment."
 
     except requests.exceptions.RequestException as e:
