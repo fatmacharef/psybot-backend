@@ -7,16 +7,13 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import nltk
 from duckduckgo_search import DDGS
 
+# 📌 Télécharger les ressources NLTK nécessaires
+nltk.download('punkt')
+nltk.download('wordnet')
+
 # 📌 Définir un chemin local pour télécharger les ressources NLTK
 NLTK_DIR = os.path.join(os.getcwd(), "nltk_data")
 nltk.data.path.append(NLTK_DIR)
-
-# 📌 Vérifier et télécharger les ressources nécessaires
-for resource in ["punkt", "wordnet"]:
-    try:
-        nltk.data.find(f'tokenizers/{resource}')
-    except LookupError:
-        nltk.download(resource, download_dir=NLTK_DIR)
 
 # 📌 Charger le token Hugging Face depuis la variable d’environnement
 HF_TOKEN = os.getenv("HF_TOKEN")
