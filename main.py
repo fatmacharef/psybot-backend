@@ -36,7 +36,7 @@ def generate_response(user_input):
     HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
 
     prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"  # Respecte le format du fine-tuning
-    payload = {"inputs": prompt}  # Correction ici : "inputs" au lieu de "prompt"
+    payload = {"inputs": prompt}  # ✅ Correction : "inputs" au lieu de "prompt"
 
     headers = {"Content-Type": "application/json"}
 
@@ -47,7 +47,6 @@ def generate_response(user_input):
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
 
-        # 🔴 Gérer les erreurs de l'API
         if response.status_code != 200:
             try:
                 error_detail = response.json().get("detail", "Impossible d'obtenir une réponse.")
@@ -59,11 +58,7 @@ def generate_response(user_input):
 
         # 🔍 Vérification et extraction correcte de la réponse
         if isinstance(response_json, dict) and "response" in response_json:
-            generated_text = response_json["response"]
-            if isinstance(generated_text, str):
-                return generated_text
-            elif isinstance(generated_text, list):
-                return " ".join(generated_text)
+            return response_json["response"]
 
         return "Désolé, je ne peux pas répondre pour le moment."
 
@@ -83,6 +78,7 @@ def search_duckduckgo(query, max_results=3):
 # 📌 Fonction de classification et réponse
 def classify_and_respond(text):
     print(f"🔍 Message reçu : {text}")
+
     try:
         tokens = tokenize_text(text)
         print(f"✅ Tokens : {tokens}")
@@ -91,13 +87,13 @@ def classify_and_respond(text):
         if tokens.intersection(search_keywords) or text.endswith('?'):
             return search_duckduckgo(text)
 
-        # 🔍 Vérification du sentiment avec VADER
-        vader_score = analyzer.polarity_scores(text)["compound"]
-        print(f"🧠 Score VADER : {vader_score}")
-
-        # 🔴 Vérification des mots violents
+        # 🔍 Vérification des mots violents avant l'analyse sentimentale
         if any(word in text.lower().split() for word in violent_keywords):
             return ["🔴 Non Accepté: Essayez de vous calmer. La violence ne résout rien."]
+
+        # 🧠 Vérification du sentiment avec VADER
+        vader_score = analyzer.polarity_scores(text)["compound"]
+        print(f"🧠 Score VADER : {vader_score}")
 
         # 🚀 Génération de réponse via Hugging Face Spaces
         response = generate_response(text)
