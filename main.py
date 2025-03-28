@@ -35,7 +35,7 @@ def tokenize_text(text):
 def generate_response(user_input):
     HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # 🔄 Vérifie bien cette URL
 
-    payload = {"inputs": user_input}  # 🔄 Vérification : certaines APIs Space attendent "inputs"
+    payload = {"prompt": user_input}  # ✅ Correction : Hugging Face API attend "prompt"
 
     try:
         print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
