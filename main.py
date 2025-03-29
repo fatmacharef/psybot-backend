@@ -4,12 +4,22 @@ from pydantic import BaseModel
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from transformers import AutoTokenizer
 from duckduckgo_search import DDGS
+from fastapi.middleware.cors import CORSMiddleware  # ✅ Ajout CORS
 
 # 📌 Charger le tokenizer de PsyBot
 tokenizer = AutoTokenizer.from_pretrained("fatmata/psybot")
 
 # 📌 Initialisation de FastAPI
 app = FastAPI()
+
+# ✅ Ajouter CORS pour autoriser les requêtes du frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 🚨 Mettre "*" pour tester, mais mieux de restreindre plus tard
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 📌 Initialisation de l'analyseur VADER
 analyzer = SentimentIntensityAnalyzer()
@@ -35,17 +45,17 @@ def tokenize_text(text):
 def generate_response(user_input):
     HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
 
-    prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"  # Respecte le format du fine-tuning
+    prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
     payload = {
         "prompt": prompt,
         "max_new_tokens": 100,
         "pad_token_id": tokenizer.eos_token_id,
         "eos_token_id": tokenizer.eos_token_id,
-        "do_sample": True,  # Activation du sampling
-        "temperature": 0.7,  # Génération plus naturelle
+        "do_sample": True,
+        "temperature": 0.7,
         "top_k": 50,
         "top_p": 0.9,
-        "repetition_penalty": 1.2  # Réduction de la répétition
+        "repetition_penalty": 1.2
     }
 
     headers = {"Content-Type": "application/json"}
@@ -53,7 +63,6 @@ def generate_response(user_input):
     try:
         print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
 
-        # 📌 Envoi des données en JSON correctement
         response = requests.post(HF_SPACE_URL, json=payload, headers=headers, timeout=30)
 
         print(f"📡 Statut HTTP: {response.status_code}")
@@ -68,7 +77,6 @@ def generate_response(user_input):
 
         response_json = response.json()
 
-        # 🔍 Vérification et extraction correcte de la réponse
         if isinstance(response_json, dict) and "response" in response_json:
             return response_json["response"]
 
@@ -95,19 +103,15 @@ def classify_and_respond(text):
         tokens = tokenize_text(text)
         print(f"✅ Tokens : {tokens}")
 
-        # 🔍 Vérifier si la question est une recherche
         if tokens.intersection(search_keywords) or text.endswith('?'):
             return search_duckduckgo(text)
 
-        # 🔍 Vérification des mots violents avant l'analyse sentimentale
         if any(word in text.lower().split() for word in violent_keywords):
             return ["🔴 Non Accepté: Essayez de vous calmer. La violence ne résout rien."]
 
-        # 🧠 Vérification du sentiment avec VADER
         vader_score = analyzer.polarity_scores(text)["compound"]
         print(f"🧠 Score VADER : {vader_score}")
 
-        # 🚀 Génération de réponse via Hugging Face Spaces
         response = generate_response(text)
         print(f"🤖 Réponse GPT : {response}")
         return [f"🟢 Accepté: {response}"]
@@ -119,6 +123,7 @@ def classify_and_respond(text):
 # 📌 Endpoint API
 @app.post("/chat/")
 async def chat_with_bot(user_input: UserInput):
+    print(f"📥 Requête reçue du frontend: {user_input.user_input}")
     return {"response": classify_and_respond(user_input.user_input)}
 
 @app.get("/")
