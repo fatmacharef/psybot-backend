@@ -38,17 +38,23 @@ def generate_response(user_input):
     prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"  # Respecte le format du fine-tuning
     payload = {
         "prompt": prompt,
-        "max_length": 150,  # Évite les réponses trop courtes
-        "temperature": 0.7,  # Ajoute plus de variation dans les réponses
-        "top_p": 0.9,  # Sélectionne les meilleures probabilités pour un texte plus naturel
-        "repetition_penalty": 1.2  # Empêche la répétition des phrases
+        "max_new_tokens": 100,
+        "pad_token_id": tokenizer.eos_token_id,
+        "eos_token_id": tokenizer.eos_token_id,
+        "do_sample": True,  # Activation du sampling
+        "temperature": 0.7,  # Génération plus naturelle
+        "top_k": 50,
+        "top_p": 0.9,
+        "repetition_penalty": 1.2  # Réduction de la répétition
     }
 
     headers = {"Content-Type": "application/json"}
 
     try:
         print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
-        response = requests.post(f"{HF_SPACE_URL}?prompt={user_input}", headers=headers, timeout=30)
+
+        # 📌 Envoi des données en JSON correctement
+        response = requests.post(HF_SPACE_URL, json=payload, headers=headers, timeout=30)
 
         print(f"📡 Statut HTTP: {response.status_code}")
         print(f"📡 Réponse brute de HF: {response.text}")
