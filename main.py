@@ -42,9 +42,12 @@ class UserInput(BaseModel):
 # 📌 Détecter la langue du message
 def detect_language(text):
     try:
-        return detect(text)
+        detected_lang = detect(text)
+        if detected_lang not in ["fr", "en", "ar"]:  # 📌 Si ce n'est pas une langue valide, on force l'anglais
+            return "en"
+        return detected_lang
     except:
-        return "en"  # 📌 Si on ne détecte pas, on assume que c'est en anglais
+        return "en"  # 📌 Si on ne détecte pas, on retourne l'anglais par défaut
 
 # 📌 Fonction de recherche DuckDuckGo
 def search_duckduckgo(query, max_results=3):
@@ -106,7 +109,7 @@ def classify_and_respond(text, original_lang):
             response = [generate_response(text)]
             print(f"🤖 Réponse GPT : {response}")
 
-        # 📌 Traduire la réponse en langue d'origine
+        # Traduire la réponse dans la langue originale détectée
         translated_response = [translate(r, original_lang) for r in response]
         return translated_response
 
