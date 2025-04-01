@@ -4,7 +4,9 @@ from pydantic import BaseModel
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from transformers import AutoTokenizer
 from duckduckgo_search import DDGS
-from fastapi.middleware.cors import CORSMiddleware  # ✅ Ajout CORS
+from fastapi.middleware.cors import CORSMiddleware
+from mtranslate import translate
+from langdetect import detect  # 📌 Pour détecter la langue
 
 # 📌 Charger le tokenizer de PsyBot
 tokenizer = AutoTokenizer.from_pretrained("fatmata/psybot")
@@ -12,16 +14,16 @@ tokenizer = AutoTokenizer.from_pretrained("fatmata/psybot")
 # 📌 Initialisation de FastAPI
 app = FastAPI()
 
-# ✅ Ajouter CORS pour autoriser les requêtes du frontend
+# ✅ Ajouter CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 🚨 Mettre "*" pour tester, mais mieux de restreindre plus tard
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 📌 Initialisation de l'analyseur VADER
+# 📌 Initialisation de l’analyseur VADER
 analyzer = SentimentIntensityAnalyzer()
 
 # 📌 Liste des mots-clés pour détecter une recherche
@@ -33,17 +35,28 @@ search_keywords = {
 # 📌 Liste des mots-clés violents
 violent_keywords = {"punch", "hit", "hurt", "kill", "destroy", "break", "explode", "attack"}
 
-# 📌 Modèle pour recevoir l'entrée utilisateur
+# 📌 Modèle pour recevoir l’entrée utilisateur
 class UserInput(BaseModel):
     user_input: str
 
-# 📌 Fonction pour tokenizer le texte
-def tokenize_text(text):
-    return set(tokenizer.tokenize(text.lower()))
+# 📌 Détecter la langue du message
+def detect_language(text):
+    try:
+        return detect(text)
+    except:
+        return "en"  # 📌 Si on ne détecte pas, on assume que c'est en anglais
 
-# 📌 Fonction pour générer une réponse avec l'API Hugging Face Spaces
+# 📌 Fonction de recherche DuckDuckGo
+def search_duckduckgo(query, max_results=3):
+    try:
+        search_results = list(DDGS().text(query, max_results=max_results))
+        return [result["body"] for result in search_results if "body" in result] or ["Je n'ai pas trouvé d'informations sur ce sujet."]
+    except Exception as e:
+        return [f"Erreur de recherche : {str(e)}"]
+
+# 📌 Fonction de génération avec GPT
 def generate_response(user_input):
-    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"  # Vérifie bien cette URL
+    HF_SPACE_URL = "https://fatmata-psybot-api.hf.space/generate"
 
     prompt = f"<|startoftext|><|user|> {user_input} <|bot|>"
     payload = {
@@ -61,60 +74,41 @@ def generate_response(user_input):
     headers = {"Content-Type": "application/json"}
 
     try:
-        print(f"🚀 Envoi de la requête à {HF_SPACE_URL}...")
-
         response = requests.post(HF_SPACE_URL, json=payload, headers=headers, timeout=30)
 
-        print(f"📡 Statut HTTP: {response.status_code}")
-        print(f"📡 Réponse brute de HF: {response.text}")
-
         if response.status_code != 200:
-            try:
-                error_detail = response.json().get("detail", "Impossible d'obtenir une réponse.")
-            except Exception:
-                error_detail = "Impossible d'obtenir une réponse."
-            return f"🚨 Erreur {response.status_code} : {error_detail}"
+            return f"🚨 Erreur {response.status_code} : Impossible d'obtenir une réponse."
 
         response_json = response.json()
-
-        if isinstance(response_json, dict) and "response" in response_json:
-            return response_json["response"]
-
-        return "Désolé, je ne peux pas répondre pour le moment."
+        return response_json.get("response", "Désolé, je ne peux pas répondre pour le moment.")
 
     except requests.exceptions.Timeout:
         return "🛑 Erreur : Temps de réponse trop long. Réessaie plus tard."
     except requests.exceptions.RequestException as e:
         return f"🛑 Erreur de connexion à Hugging Face : {str(e)}"
 
-# 📌 Fonction de recherche avec DuckDuckGo
-def search_duckduckgo(query, max_results=3):
-    try:
-        search_results = list(DDGS().text(query, max_results=max_results))
-        return [result["body"] for result in search_results if "body" in result] or ["Je n'ai pas trouvé d'informations sur ce sujet."]
-    except Exception as e:
-        return [f"Erreur de recherche : {str(e)}"]
-
 # 📌 Fonction de classification et réponse
-def classify_and_respond(text):
-    print(f"🔍 Message reçu : {text}")
+def classify_and_respond(text, original_lang):
+    print(f"🔍 Message reçu (traduit en anglais) : {text}")
 
     try:
-        tokens = tokenize_text(text)
+        tokens = set(tokenizer.tokenize(text.lower()))
         print(f"✅ Tokens : {tokens}")
 
         if tokens.intersection(search_keywords) or text.endswith('?'):
-            return search_duckduckgo(text)
+            response = search_duckduckgo(text)
+        elif any(word in text.lower().split() for word in violent_keywords):
+            response = ["🔴 Non Accepté: Essayez de vous calmer. La violence ne résout rien."]
+        else:
+            vader_score = analyzer.polarity_scores(text)["compound"]
+            print(f"🧠 Score VADER : {vader_score}")
 
-        if any(word in text.lower().split() for word in violent_keywords):
-            return ["🔴 Non Accepté: Essayez de vous calmer. La violence ne résout rien."]
+            response = [generate_response(text)]
+            print(f"🤖 Réponse GPT : {response}")
 
-        vader_score = analyzer.polarity_scores(text)["compound"]
-        print(f"🧠 Score VADER : {vader_score}")
-
-        response = generate_response(text)
-        print(f"🤖 Réponse GPT : {response}")
-        return [f"🟢 Accepté: {response}"]
+        # 📌 Traduire la réponse en langue d'origine
+        translated_response = [translate(r, original_lang) for r in response]
+        return translated_response
 
     except Exception as e:
         print(f"❌ Erreur classification : {e}")
@@ -124,7 +118,18 @@ def classify_and_respond(text):
 @app.post("/chat/")
 async def chat_with_bot(user_input: UserInput):
     print(f"📥 Requête reçue du frontend: {user_input.user_input}")
-    return {"response": classify_and_respond(user_input.user_input)}
+
+    # 📌 Détection de la langue originale
+    detected_lang = detect_language(user_input.user_input)
+    print(f"🌍 Langue détectée : {detected_lang}")
+
+    # 📌 Traduire l'entrée utilisateur en anglais avant tout traitement
+    user_input_en = translate(user_input.user_input, "en")
+    
+    # 📌 Effectuer la classification et la génération de réponse
+    response = classify_and_respond(user_input_en, detected_lang)
+
+    return {"response": response}
 
 @app.get("/")
 async def home():
