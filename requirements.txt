@@ -7,4 +7,6 @@ vaderSentiment
 duckduckgo-search
 huggingface_hub
 requests
-nltk  
+nltk
+mtranslate
+langdetect
