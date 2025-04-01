@@ -10,3 +10,5 @@ requests
 nltk
 mtranslate
 langdetect
+websockets
+
