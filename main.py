@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 import requests
 from pydantic import BaseModel
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -6,7 +6,7 @@ from transformers import AutoTokenizer
 from duckduckgo_search import DDGS
 from fastapi.middleware.cors import CORSMiddleware
 from mtranslate import translate
-from langdetect import detect
+from langdetect import detect  # 📌 Pour détecter la langue
 
 # 📌 Charger le tokenizer de PsyBot
 tokenizer = AutoTokenizer.from_pretrained("fatmata/psybot")
@@ -34,6 +34,10 @@ search_keywords = {
 
 # 📌 Liste des mots-clés violents
 violent_keywords = {"punch", "hit", "hurt", "kill", "destroy", "break", "explode", "attack"}
+
+# 📌 Modèle pour recevoir l’entrée utilisateur
+class UserInput(BaseModel):
+    user_input: str
 
 # 📌 Détecter la langue du message
 def detect_language(text):
@@ -113,30 +117,22 @@ def classify_and_respond(text, original_lang):
         print(f"❌ Erreur classification : {e}")
         return ["⚠️ Une erreur est survenue dans la classification du message."]
 
-# 📌 Endpoint WebSocket
-@app.websocket("/ws/chat/")
-async def chat_websocket(websocket: WebSocket):
-    await websocket.accept()
+# 📌 Endpoint API
+@app.post("/chat/")
+async def chat_with_bot(user_input: UserInput):
+    print(f"📥 Requête reçue du frontend: {user_input.user_input}")
 
-    try:
-        while True:
-            user_input = await websocket.receive_text()
+    # 📌 Détection de la langue originale
+    detected_lang = detect_language(user_input.user_input)
+    print(f"🌍 Langue détectée : {detected_lang}")
 
-            # 📌 Détection de la langue originale
-            detected_lang = detect_language(user_input)
-            print(f"🌍 Langue détectée : {detected_lang}")
+    # 📌 Traduire l'entrée utilisateur en anglais avant tout traitement
+    user_input_en = translate(user_input.user_input, "en")
+    
+    # 📌 Effectuer la classification et la génération de réponse
+    response = classify_and_respond(user_input_en, detected_lang)
 
-            # 📌 Traduire l'entrée utilisateur en anglais avant tout traitement
-            user_input_en = translate(user_input, "en")
-
-            # 📌 Effectuer la classification et la génération de réponse
-            response = classify_and_respond(user_input_en, detected_lang)
-
-            # 📌 Envoyer la réponse au client via WebSocket
-            await websocket.send_text(" ".join(response))
-
-    except WebSocketDisconnect:
-        print("Client déconnecté")
+    return {"response": response}
 
 @app.get("/")
 async def home():
