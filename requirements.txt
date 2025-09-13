@@ -2,13 +2,7 @@ fastapi
 uvicorn
 transformers
 torch
-pydantic
 vaderSentiment
 duckduckgo-search
-huggingface_hub
-requests
-nltk
 mtranslate
 langdetect
-websockets
-
